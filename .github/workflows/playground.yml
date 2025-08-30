@@ -125,6 +125,11 @@ jobs:
 
       - name: Install build runtime
         run: |
+          # Handle cmake conflict by uninstalling existing version first
+          if brew list cmake &>/dev/null; then
+              echo "Uninstalling existing cmake to resolve tap conflict"
+              brew uninstall cmake
+          fi
           brew install llvm create-dmg nasm cmake gcc wget ninja pkg-config
 
       - name: Install flutter
