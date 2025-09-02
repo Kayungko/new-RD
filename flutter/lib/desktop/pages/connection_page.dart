@@ -84,7 +84,8 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
              _svcIsUsingPublicServer.value),
          child: Row(
            crossAxisAlignment: CrossAxisAlignment.center,
-           children: [],),
+           children: [],
+         ),
        ),
      );
 
