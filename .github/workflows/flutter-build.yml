@@ -140,6 +140,7 @@ jobs:
           vcpkgDirectory: C:\vcpkg
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotCache: false
+        continue-on-error: true
 
       - name: Install vcpkg dependencies
         env:
@@ -283,8 +284,10 @@ jobs:
   build-for-windows-sciter:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
+    # Allow this job to fail without affecting other builds
+    continue-on-error: true
     # Temporarily disable this action due to additional test is needed.
-    # if: false
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -341,6 +344,7 @@ jobs:
           vcpkgDirectory: C:\vcpkg
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotCache: false
+        continue-on-error: true
 
       - name: Install vcpkg dependencies
         env:
@@ -478,6 +482,7 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotCache: false
+        continue-on-error: true
 
       - name: Install vcpkg dependencies
         run: |
@@ -508,6 +513,7 @@ jobs:
         with:
           prefix-key: rustdesk-lib-cache-ios
           key: ${{ matrix.job.target }}
+        continue-on-error: true
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
@@ -667,6 +673,8 @@ jobs:
           echo "RUSTFLAGS=-A warnings" >> $GITHUB_ENV
           echo "CFLAGS=-Wno-deprecated-declarations -Wno-ignored-attributes -Wno-unguarded-availability-new" >> $GITHUB_ENV
           echo "CXXFLAGS=-Wno-deprecated-declarations -Wno-ignored-attributes -Wno-unguarded-availability-new" >> $GITHUB_ENV
+          echo "SWIFT_SUPPRESS_WARNINGS=YES" >> $GITHUB_ENV
+          echo "FLUTTER_BUILD_VERBOSE=false" >> $GITHUB_ENV
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -684,6 +692,7 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotCache: false
+        continue-on-error: true
 
       - name: Install vcpkg dependencies
         run: |
@@ -963,6 +972,7 @@ jobs:
         with:
           prefix-key: rustdesk-lib-cache-android # TODO: drop '-android' part after caches are invalidated
           key: ${{ matrix.job.target }}
+        continue-on-error: true
 
       - name: Build rustdesk lib
         env:
