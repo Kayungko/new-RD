@@ -1116,6 +1116,9 @@ jobs:
       reltype: release
       x86_target: "" # can be ",android-x86"
       suffix: ""
+      # Gradle 内存和性能优化
+      GRADLE_OPTS: -Xmx8g -XX:MaxMetaspaceSize=2g -XX:+UseG1GC
+      _JAVA_OPTIONS: -Xmx8g
     steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
@@ -1223,6 +1226,13 @@ jobs:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
           export PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH
+          # 配置 Gradle 内存和性能
+          mkdir -p ~/.gradle
+          echo "org.gradle.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=2g -XX:+UseG1GC" >> ~/.gradle/gradle.properties
+          echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.daemon=false" >> ~/.gradle/gradle.properties
+          echo "android.enableR8.fullMode=false" >> ~/.gradle/gradle.properties
           # temporary use debug sign config
           sed -i "s/signingConfigs.release/signingConfigs.debug/g" ./flutter/android/app/build.gradle
           mv ./flutter/android/app/src/main/jniLibs/arm64-v8a/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/arm64-v8a/librustdesk.so

@@ -64,6 +64,11 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
     }
 
+    // 添加内存和构建优化配置
+    dexOptions {
+        javaMaxHeapSize "4g"
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.carriez.flutter_hbb"
@@ -99,6 +104,7 @@ flutter {
 dependencies {
     implementation "androidx.media:media:1.6.0"
     implementation 'com.github.getActivity:XXPermissions:18.5'
-    implementation("org.jetbrains.kotlin:kotlin-stdlib") { version { strictly("1.9.10") } }
+    // 移除强制版本限制，让Gradle自动解决版本冲突
+    implementation "org.jetbrains.kotlin:kotlin-stdlib"
     implementation 'com.caverock:androidsvg-aar:1.4'
 }
