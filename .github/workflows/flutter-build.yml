@@ -132,6 +132,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.os }}
+        continue-on-error: true
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
@@ -321,10 +322,18 @@ jobs:
           toolchain: nightly-2023-10-13-${{ matrix.job.target }} # must use nightly here, because of abi_thiscall feature required
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
+          
+      - name: Set Windows compiler flags to reduce warnings
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "RUSTFLAGS=-A warnings -C target-cpu=native" >> $GITHUB_ENV
+          echo "Rust environment configured for Windows build"
 
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.os }}-sciter
+        continue-on-error: true
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
@@ -651,10 +660,18 @@ jobs:
           toolchain: ${{ env.MAC_RUST_VERSION }}
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
+          
+      - name: Set macOS compiler flags to reduce warnings
+        if: runner.os == 'macOS'
+        run: |
+          echo "RUSTFLAGS=-A warnings" >> $GITHUB_ENV
+          echo "CFLAGS=-Wno-deprecated-declarations -Wno-ignored-attributes -Wno-unguarded-availability-new" >> $GITHUB_ENV
+          echo "CXXFLAGS=-Wno-deprecated-declarations -Wno-ignored-attributes -Wno-unguarded-availability-new" >> $GITHUB_ENV
 
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.os }}
+        continue-on-error: true
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
