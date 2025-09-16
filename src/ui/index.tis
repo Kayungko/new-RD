@@ -1235,6 +1235,9 @@ function set_local_user_info(user) {
         user_info.status = user.status;
     }
     handler.set_local_option("user_info", JSON.stringify(user_info));
+    
+    // 🆕 启动定期账户状态检查
+    start_periodic_account_check();
 }
 
 function login() {
@@ -1350,6 +1353,9 @@ function reset_token() {
     if (abComponent) {
         abComponent.update();
     }
+    
+    // 🆕 停止定期账户状态检查
+    stop_periodic_account_check();
 }
 
 function logout() {
@@ -1379,6 +1385,10 @@ function refreshCurrentUser() {
           handleAbError("Please update your self-hosting server Pro to latest version");
           return;
         }
+        
+        // 🆕 检查账户状态和到期时间
+        check_account_expiry_status(data);
+        
         set_local_user_info(data);
         myIdMenu.update();
         getAb();
@@ -1396,4 +1406,188 @@ function getHttpHeaders() {
 
 function getDeviceInfo() {
     return JSON.parse(handler.get_login_device_info());
+}
+
+// 🆕 账户到期检查和提醒功能
+function check_account_expiry_status(user_data) {
+    // 检查账户状态
+    if (user_data.status != 1) {
+        // 账户已被禁用
+        show_account_disabled_dialog();
+        return;
+    }
+    
+    // 检查账户到期时间
+    if (user_data.account_end_time) {
+        var current_time = Date.now() / 1000;
+        var end_time = user_data.account_end_time;
+        var seconds_remaining = end_time - current_time;
+        
+        if (seconds_remaining <= 0) {
+            // 账户已到期
+            show_account_expired_dialog();
+        } else {
+            // 检查是否需要显示提醒
+            check_expiry_warning(seconds_remaining);
+        }
+    }
+}
+
+function check_expiry_warning(seconds_remaining) {
+    var warning_level = get_expiry_warning_level(seconds_remaining);
+    
+    if (warning_level.level != "none") {
+        // 检查是否已经提醒过（避免重复提醒）
+        var last_warning = handler.get_local_option("last_expiry_warning");
+        var current_time = Date.now();
+        
+        // 根据警告级别决定提醒间隔
+        var warning_interval = get_warning_interval(warning_level.level);
+        
+        if (!last_warning || (current_time - parseInt(last_warning)) > warning_interval) {
+            show_account_expiry_warning(warning_level);
+            handler.set_local_option("last_expiry_warning", current_time.toString());
+        }
+    }
+}
+
+function get_expiry_warning_level(seconds_remaining) {
+    if (seconds_remaining <= 2 * 3600) { // 2小时内
+        var minutes = Math.floor(seconds_remaining / 60);
+        return { level: "critical", time: minutes, unit: "minutes" };
+    } else if (seconds_remaining <= 24 * 3600) { // 24小时内
+        var hours = Math.floor(seconds_remaining / 3600);
+        return { level: "hours", time: hours, unit: "hours" };
+    } else if (seconds_remaining <= 3 * 24 * 3600) { // 3天内
+        var days = Math.floor(seconds_remaining / (24 * 3600));
+        return { level: "days", time: days, unit: "days" };
+    } else if (seconds_remaining <= 7 * 24 * 3600) { // 7天内
+        var days = Math.floor(seconds_remaining / (24 * 3600));
+        return { level: "week", time: days, unit: "days" };
+    }
+    return { level: "none" };
+}
+
+function get_warning_interval(level) {
+    switch(level) {
+        case "critical": return 30 * 60 * 1000; // 30分钟
+        case "hours": return 6 * 3600 * 1000;   // 6小时
+        case "days": return 12 * 3600 * 1000;   // 12小时
+        case "week": return 24 * 3600 * 1000;   // 24小时
+        default: return 24 * 3600 * 1000;
+    }
+}
+
+function show_account_expiry_warning(warning_level) {
+    var message = get_expiry_message(warning_level);
+    var dialog_type = "account-expiry-" + warning_level.level;
+    var title = warning_level.level == "critical" ? 
+                translate('Critical Warning') : 
+                translate('Account Expiry Warning');
+    
+    msgbox(dialog_type, title, message, "", function(result) {
+        if (result && result.contact_admin) {
+            // 用户点击了联系管理员
+            show_contact_admin_info();
+        }
+    });
+}
+
+function show_account_disabled_dialog() {
+    msgbox("account-disabled", 
+           translate('Account Disabled'), 
+           translate('Your account has been disabled. Please contact your administrator.'),
+           "", 
+           function() {
+               force_logout_disabled_account();
+           });
+}
+
+function show_account_expired_dialog() {
+    msgbox("account-expired", 
+           translate('Account Expired'), 
+           translate('Your account has expired. You will be automatically logged out.'),
+           "", 
+           function() {
+               // 3秒后自动退出登录
+               self.timer(3000ms, function() {
+                   force_logout_expired_account();
+               });
+           });
+}
+
+function get_expiry_message(warning_level) {
+    var message_key = "";
+    switch(warning_level.level) {
+        case "week":
+        case "days":
+            message_key = "account_expires_in_days";
+            break;
+        case "hours":
+            message_key = "account_expires_in_hours";
+            break;
+        case "critical":
+            message_key = "account_expires_in_minutes";
+            break;
+    }
+    
+    var message = translate(message_key);
+    return message.replace('{}', warning_level.time.toString());
+}
+
+function force_logout_expired_account() {
+    // 清理访问令牌和用户信息
+    reset_token();
+    
+    // 记录日志
+    console.log("Account expired, user has been logged out automatically");
+    
+    // 显示退出后的状态
+    show_logged_out_expired_status();
+}
+
+function force_logout_disabled_account() {
+    // 清理访问令牌和用户信息
+    reset_token();
+    
+    // 记录日志
+    console.log("Account disabled, user has been logged out automatically");
+}
+
+function show_contact_admin_info() {
+    // 可以在这里添加联系管理员的具体信息
+    msgbox("info", translate('Contact Administrator'), 
+           translate('Please contact your system administrator to renew your account access.'));
+}
+
+function show_logged_out_expired_status() {
+    // 显示账户已过期的状态信息
+    msgbox("info-nocancel", translate('Account Expired'), 
+           translate('Your account access has expired. Please contact your administrator to renew your account access.'));
+}
+
+// 定期检查账户状态（每30分钟检查一次）
+var accountCheckTimer = null;
+function start_periodic_account_check() {
+    if (accountCheckTimer) {
+        self.timer(0, accountCheckTimer); // 清除现有定时器
+    }
+    
+    accountCheckTimer = function() {
+        var token = handler.get_local_option("access_token");
+        if (token) {
+            // 只有在已登录状态下才检查
+            refreshCurrentUser();
+        }
+    };
+    
+    // 每30分钟检查一次
+    self.timer(30 * 60 * 1000, accountCheckTimer);
+}
+
+function stop_periodic_account_check() {
+    if (accountCheckTimer) {
+        self.timer(0, accountCheckTimer);
+        accountCheckTimer = null;
+    }
 }

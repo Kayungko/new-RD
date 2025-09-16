@@ -2576,3 +2576,331 @@ Widget trustedDevicesTable(
         )),
   );
 }
+
+// 🆕 账户到期提醒对话框
+enum ExpiryLevel { none, week, days, hours, critical, expired }
+
+class ExpiryWarning {
+  final ExpiryLevel level;
+  final int time;
+  final String unit;
+
+  ExpiryWarning({required this.level, required this.time, required this.unit});
+}
+
+Future<void> showAccountExpiryWarning(
+  BuildContext context,
+  ExpiryWarning warning,
+) async {
+  final isDesktop = isDesktop || isWebDesktop;
+  
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return CustomAlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              warning.level == ExpiryLevel.critical ? Icons.warning : Icons.access_time,
+              color: _getWarningColor(warning.level),
+              size: 24,
+            ),
+            SizedBox(width: 8),
+            Text(
+              warning.level == ExpiryLevel.critical
+                  ? translate('Critical Warning')
+                  : translate('Account Expiry Warning'),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_getExpiryMessage(warning)),
+              if (warning.level == ExpiryLevel.critical) ...[
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.red, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          translate('Please save your work immediately'),
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          if (warning.level != ExpiryLevel.expired) ...[
+            dialogButton(
+              translate('I Understand'),
+              onPressed: () => Navigator.of(context).pop(),
+              isOutline: true,
+            ),
+            dialogButton(
+              translate('Contact Administrator'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showContactAdminInfo(context);
+              },
+              isOutline: false,
+            ),
+          ] else ...[
+            dialogButton(
+              translate('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _forceLogoutExpired();
+              },
+              isOutline: false,
+            ),
+          ],
+        ],
+      );
+    },
+  );
+}
+
+Future<void> showAccountExpiredDialog(BuildContext context) async {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return WillPopScope(
+        onWillPop: () async => false, // 防止返回键关闭
+        child: CustomAlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.block, color: Colors.red, size: 24),
+              SizedBox(width: 8),
+              Text(translate('Account Expired')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(translate('Your account has expired. You will be automatically logged out.')),
+              SizedBox(height: 16),
+              CircularProgressIndicator(),
+              SizedBox(height: 8),
+              Text('Logging out in 3 seconds...'),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Future<void> showAccountDisabledDialog(BuildContext context) async {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return CustomAlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.block, color: Colors.red, size: 24),
+            SizedBox(width: 8),
+            Text(translate('Account Disabled')),
+          ],
+        ),
+        content: Text(translate('Your account has been disabled. Please contact your administrator.')),
+        actions: <Widget>[
+          dialogButton(
+            translate('OK'),
+            onPressed: () {
+              Navigator.of(context).pop();
+              _forceLogoutDisabled();
+            },
+            isOutline: false,
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Color _getWarningColor(ExpiryLevel level) {
+  switch (level) {
+    case ExpiryLevel.critical:
+      return Color(0xFFE74C3C); // 红色 - 紧急警告
+    case ExpiryLevel.expired:
+      return Color(0xFFC0392B); // 深红 - 已过期
+    default:
+      return Color(0xFFFF6B35); // 橙色 - 一般警告
+  }
+}
+
+String _getExpiryMessage(ExpiryWarning warning) {
+  switch (warning.level) {
+    case ExpiryLevel.week:
+    case ExpiryLevel.days:
+      return translate('account_expires_in_days').replaceAll('{}', warning.time.toString());
+    case ExpiryLevel.hours:
+      return translate('account_expires_in_hours').replaceAll('{}', warning.time.toString());
+    case ExpiryLevel.critical:
+      return translate('account_expires_in_minutes').replaceAll('{}', warning.time.toString());
+    default:
+      return '';
+  }
+}
+
+void _showContactAdminInfo(BuildContext context) {
+  gFFI.dialogManager.show((setState, close, context) {
+    return CustomAlertDialog(
+      title: Text(translate('Contact Administrator')),
+      content: Text(translate('Please contact your system administrator to renew your account access.')),
+      actions: [
+        dialogButton(translate('OK'), onPressed: close, isOutline: false),
+      ],
+    );
+  });
+}
+
+void _forceLogoutExpired() {
+  // 清理访问令牌和用户信息
+  _clearUserSession();
+  
+  // 记录日志
+  debugPrint("Account expired, user has been logged out automatically");
+  
+  // 显示退出后的状态
+  _showLoggedOutExpiredStatus();
+}
+
+void _forceLogoutDisabled() {
+  // 清理访问令牌和用户信息
+  _clearUserSession();
+  
+  // 记录日志
+  debugPrint("Account disabled, user has been logged out automatically");
+}
+
+void _clearUserSession() {
+  // 清理用户会话数据
+  bind.mainSetLocalOption(key: "access_token", value: "");
+  bind.mainSetLocalOption(key: "user_info", value: "");
+  gFFI.userModel.reset();
+  gFFI.abModel.reset();
+}
+
+void _showLoggedOutExpiredStatus() {
+  gFFI.dialogManager.show((setState, close, context) {
+    return CustomAlertDialog(
+      title: Text(translate('Account Expired')),
+      content: Text(translate('Your account access has expired. Please contact your administrator to renew your account access.')),
+      actions: [
+        dialogButton(translate('OK'), onPressed: close, isOutline: false),
+      ],
+    );
+  });
+}
+
+// 🆕 账户状态检查功能
+class AccountStatusManager {
+  static ExpiryWarning? _getExpiryWarningLevel(int secondsRemaining) {
+    if (secondsRemaining <= 2 * 3600) { // 2小时内
+      final minutes = (secondsRemaining / 60).floor();
+      return ExpiryWarning(level: ExpiryLevel.critical, time: minutes, unit: "minutes");
+    } else if (secondsRemaining <= 24 * 3600) { // 24小时内
+      final hours = (secondsRemaining / 3600).floor();
+      return ExpiryWarning(level: ExpiryLevel.hours, time: hours, unit: "hours");
+    } else if (secondsRemaining <= 3 * 24 * 3600) { // 3天内
+      final days = (secondsRemaining / (24 * 3600)).floor();
+      return ExpiryWarning(level: ExpiryLevel.days, time: days, unit: "days");
+    } else if (secondsRemaining <= 7 * 24 * 3600) { // 7天内
+      final days = (secondsRemaining / (24 * 3600)).floor();
+      return ExpiryWarning(level: ExpiryLevel.week, time: days, unit: "days");
+    }
+    return null;
+  }
+
+  static int _getWarningInterval(ExpiryLevel level) {
+    switch (level) {
+      case ExpiryLevel.critical:
+        return 30 * 60 * 1000; // 30分钟
+      case ExpiryLevel.hours:
+        return 6 * 3600 * 1000; // 6小时
+      case ExpiryLevel.days:
+        return 12 * 3600 * 1000; // 12小时
+      case ExpiryLevel.week:
+        return 24 * 3600 * 1000; // 24小时
+      default:
+        return 24 * 3600 * 1000;
+    }
+  }
+
+  static Future<void> checkAccountExpiryStatus(Map<String, dynamic> userData) async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    // 检查账户状态
+    if (userData['status'] != 1) {
+      // 账户已被禁用
+      await showAccountDisabledDialog(context);
+      return;
+    }
+
+    // 检查账户到期时间
+    final accountEndTime = userData['account_end_time'];
+    if (accountEndTime != null) {
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final endTime = accountEndTime is int ? accountEndTime : int.tryParse(accountEndTime.toString());
+      
+      if (endTime != null) {
+        final secondsRemaining = endTime - currentTime;
+        
+        if (secondsRemaining <= 0) {
+          // 账户已到期
+          await showAccountExpiredDialog(context);
+          // 3秒后自动退出登录
+          Future.delayed(Duration(seconds: 3), () {
+            _forceLogoutExpired();
+          });
+        } else {
+          // 检查是否需要显示提醒
+          await _checkExpiryWarning(context, secondsRemaining);
+        }
+      }
+    }
+  }
+
+  static Future<void> _checkExpiryWarning(BuildContext context, int secondsRemaining) async {
+    final warning = _getExpiryWarningLevel(secondsRemaining);
+    
+    if (warning != null) {
+      // 检查是否已经提醒过（避免重复提醒）
+      final lastWarningStr = await bind.mainGetLocalOption(key: "last_expiry_warning");
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      final lastWarning = lastWarningStr.isNotEmpty ? int.tryParse(lastWarningStr) : null;
+      
+      // 根据警告级别决定提醒间隔
+      final warningInterval = _getWarningInterval(warning.level);
+      
+      if (lastWarning == null || (currentTime - lastWarning) > warningInterval) {
+        await showAccountExpiryWarning(context, warning);
+        await bind.mainSetLocalOption(key: "last_expiry_warning", value: currentTime.toString());
+      }
+    }
+  }
+}

@@ -53,6 +53,12 @@ class MsgboxComponent: Reactor.Component {
         if (this.type.indexOf("error") >= 0 || this.type == "re-input-password" || this.type == "input-2fa" || this.type == "session-re-login" || this.type == "session-login-re-password") {
             return <svg viewBox="0 0 512 512"><ellipse cx="256" cy="256" rx="256" ry="255.832" fill={color}/><g fill="#fff"><path d="M376.812 337.18l-39.592 39.593-201.998-201.999 39.592-39.592z"/><path d="M376.818 174.825L174.819 376.824l-39.592-39.592 201.999-201.999z"/></g></svg>;
         }
+        if (this.type.indexOf("account-expiry") >= 0) {
+            return <svg viewBox="0 0 512 512"><circle cx="256" cy="256" r="256" fill={color}/><g fill="#fff"><path d="M256 64C150 64 64 150 64 256s86 192 192 192 192-86 192-192S362 64 256 64zm106.5 218.7h-114.4c-2.2 0-4.1-1.9-4.1-4.1V162.3c0-13.5 11.4-24.9 24.9-24.9s24.9 11.4 24.9 24.9v92.1h68.7c13.5 0 24.9 11.4 24.9 24.9s-11.4 25.4-24.9 25.4z"/></svg>;
+        }
+        if (this.type == "account-expired") {
+            return <svg viewBox="0 0 512 512"><circle cx="256" cy="256" r="256" fill={color}/><g fill="#fff"><path d="M256 64C150 64 64 150 64 256s86 192 192 192 192-86 192-192S362 64 256 64zm0 320c-70.7 0-128-57.3-128-128S185.3 128 256 128s128 57.3 128 128-57.3 128-128 128z"/><path d="M256 144c-61.9 0-112 50.1-112 112s50.1 112 112 112 112-50.1 112-112-50.1-112-112-112zm56 168l-24 24-32-32-32 32-24-24 32-32-32-32 24-24 32 32 32-32 24 24-32 32 32 32z"/></g></svg>;
+        }
         return null;
     }
 
@@ -124,6 +130,15 @@ class MsgboxComponent: Reactor.Component {
         }
         if (this.type.indexOf("error") >= 0 || this.type == "re-input-password" || this.type == "session-re-login" || this.type == "session-login-re-password") {
             return "#e04f5f";
+        }
+        if (this.type.indexOf("account-expiry") >= 0) {
+            if (this.type.indexOf("critical") >= 0) {
+                return "#E74C3C"; // 红色 - 紧急警告
+            }
+            return "#FF6B35"; // 橙色 - 一般警告
+        }
+        if (this.type == "account-expired") {
+            return "#C0392B"; // 深红 - 已过期
         }
         return "#2C8CFF";
     }
