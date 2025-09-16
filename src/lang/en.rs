@@ -190,6 +190,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Your account access has expired. Please contact your administrator to renew your account access.", "Your account access has expired. Please contact your administrator to renew your account access."),
         ("Contact Administrator", "Contact Administrator"),
         ("Please contact your system administrator to renew your account access.", "Please contact your system administrator to renew your account access."),
+        ("Please save your work immediately", "Please save your work immediately"),
+        ("I Understand", "I Understand"),
         ("Toggle Tags", "Toggle tags"),
         ("pull_ab_failed_tip", "Failed to refresh address book"),
         ("push_ab_failed_tip", "Failed to sync address book to server"),

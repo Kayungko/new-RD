@@ -529,6 +529,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Your account access has expired. Please contact your administrator to renew your account access.", "您的账户访问权限已过期。请联系管理员续期您的账户访问权限。"),
         ("Contact Administrator", "联系管理员"),
         ("Please contact your system administrator to renew your account access.", "请联系系统管理员续期您的账户访问权限。"),
+        ("Please save your work immediately", "请立即保存您的工作"),
+        ("I Understand", "我知道了"),
         ("List View", "列表视图"),
         ("Select", "选择"),
         ("Toggle Tags", "切换标签"),

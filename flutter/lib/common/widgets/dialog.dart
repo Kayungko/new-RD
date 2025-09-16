@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:bot_toast/bot_toast.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
@@ -2592,7 +2593,7 @@ Future<void> showAccountExpiryWarning(
   BuildContext context,
   ExpiryWarning warning,
 ) async {
-  final isDesktop = isDesktop || isWebDesktop;
+  final isDesktopOrWeb = isDesktop || isWebDesktop;
   
   return showDialog<void>(
     context: context,
@@ -2851,7 +2852,7 @@ class AccountStatusManager {
   }
 
   static Future<void> checkAccountExpiryStatus(Map<String, dynamic> userData) async {
-    final context = navigatorKey.currentContext;
+    final context = globalKey.currentContext;
     if (context == null) return;
 
     // 检查账户状态
