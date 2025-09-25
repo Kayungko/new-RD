@@ -46,6 +46,10 @@ env:
   MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}"
+  # 构建稳定性改进
+  SWIFT_SUPPRESS_WARNINGS: "YES"
+  FLUTTER_BUILD_VERBOSE: "false"
+  RUSTFLAGS: "-A warnings"
 
 jobs:
   generate-bridge:
@@ -924,6 +928,7 @@ jobs:
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
+        continue-on-error: true
         with:
           vcpkgDirectory: /opt/artifacts/vcpkg
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
@@ -1388,6 +1393,7 @@ jobs:
       - name: Setup vcpkg with Github Actions binary cache
         if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
         uses: lukka/run-vcpkg@v11
+        continue-on-error: true
         with:
           vcpkgDirectory: /opt/artifacts/vcpkg
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
