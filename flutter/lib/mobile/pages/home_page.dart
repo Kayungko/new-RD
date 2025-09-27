@@ -5,6 +5,7 @@ import 'package:flutter_hbb/web/settings_page.dart';
 import 'package:get/get.dart';
 import '../../common.dart';
 import '../../common/widgets/chat_page.dart';
+import '../../common/widgets/auto_config_dialog.dart';
 import '../../models/platform_model.dart';
 import '../../models/state_model.dart';
 import 'connection_page.dart';
@@ -43,6 +44,11 @@ class HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     initPages();
+    
+    // 检查是否需要显示首次配置对话框
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkAndShowFirstTimeConfig(gFFI.dialogManager);
+    });
   }
 
   void initPages() {
