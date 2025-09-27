@@ -14,9 +14,11 @@ import 'package:url_launcher/url_launcher_string.dart';
 import '../../common.dart';
 import '../../common/widgets/dialog.dart';
 import '../../common/widgets/login.dart';
+import '../../common/widgets/auto_config_dialog.dart';
 import '../../consts.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
+import '../../utils/server_config_manager.dart';
 import '../widgets/dialog.dart';
 import 'home_page.dart';
 import 'scan_page.dart';
@@ -204,6 +206,15 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         setState(() {});
       }
     });
+  }
+
+  String _buildAutoConfigStatus() {
+    if (ServerConfigManager.hasAutoConfigApplied) {
+      final info = ServerConfigManager.getAutoConfigInfo();
+      return '已应用: ${info['name'] ?? '自动配置'}';
+    } else {
+      return '点击输入配置码自动配置服务器';
+    }
   }
 
   @override
@@ -662,6 +673,16 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             ],
           ),
         SettingsSection(title: Text(translate("Settings")), tiles: [
+          if (!disabledSettings && !_hideNetwork && !_hideServer)
+            SettingsTile(
+                title: Text(translate('获取服务器配置')),
+                subtitle: Text(_buildAutoConfigStatus()),
+                leading: Icon(Icons.cloud_download_outlined),
+                onPressed: (context) {
+                  showAutoConfigDialog(gFFI.dialogManager, onSuccess: () {
+                    setState(() {}); // 刷新页面状态
+                  });
+                }),
           if (!disabledSettings && !_hideNetwork && !_hideServer)
             SettingsTile(
                 title: Text(translate('ID/Relay Server')),

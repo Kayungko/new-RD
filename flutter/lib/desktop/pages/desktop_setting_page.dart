@@ -25,6 +25,8 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../common/widgets/dialog.dart';
 import '../../common/widgets/login.dart';
+import '../../common/widgets/auto_config_dialog.dart';
+import '../../utils/server_config_manager.dart';
 
 const double _kTabWidth = 200;
 const double _kTabHeight = 42;
@@ -1500,6 +1502,15 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
 
   final scrollController = ScrollController();
 
+  String _buildAutoConfigStatus() {
+    if (ServerConfigManager.hasAutoConfigApplied) {
+      final info = ServerConfigManager.getAutoConfigInfo();
+      return '已应用: ${info['name'] ?? '自动配置'}';
+    } else {
+      return '点击输入配置码自动配置服务器';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -1592,6 +1603,17 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (!hideServer)
+                listTile(
+                  icon: Icons.cloud_download_outlined,
+                  title: '获取服务器配置',
+                  subtitle: _buildAutoConfigStatus(),
+                  onTap: () => showAutoConfigDialog(gFFI.dialogManager, onSuccess: () {
+                    setState(() {}); // 刷新页面状态
+                  }),
+                ),
+              if (!hideServer)
+                Divider(height: 1, indent: 16, endIndent: 16),
               if (!hideServer)
                 listTile(
                   icon: Icons.dns_outlined,
