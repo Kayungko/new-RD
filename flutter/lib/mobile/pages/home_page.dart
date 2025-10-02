@@ -43,6 +43,29 @@ class HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     initPages();
+    _checkFirstLaunchAndShowWelcome();
+  }
+
+  // Check if it's the first launch without server configuration
+  void _checkFirstLaunchAndShowWelcome() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Check if user has seen welcome dialog before
+      final hasSeenWelcome = bind.mainGetOption(key: 'has_seen_welcome');
+      
+      // Check if server is already configured
+      final hasIdServer = bind.mainGetOption(key: 'custom-rendezvous-server');
+      final hasConfigTime = bind.mainGetOption(key: 'config_timestamp');
+      final isServerConfigured = hasIdServer.isNotEmpty || hasConfigTime.isNotEmpty;
+      
+      // Show welcome dialog only on first launch without configuration
+      if (hasSeenWelcome.isEmpty && !isServerConfigured && !bind.isIncomingOnly()) {
+        Future.delayed(Duration(milliseconds: 500), () {
+          showWelcomeConfigDialog(gFFI.dialogManager);
+          // Mark as seen
+          bind.mainSetOption(key: 'has_seen_welcome', value: 'true');
+        });
+      }
+    });
   }
 
   void initPages() {

@@ -321,3 +321,540 @@ void setPrivacyModeDialog(
     );
   }, backDismiss: true, clickMaskDismiss: true);
 }
+
+/// Show config code input dialog
+/// Allows users to input server configuration code
+void showConfigCodeDialog(OverlayDialogManager dialogManager) async {
+  final codeCtrl = TextEditingController();
+  var isVerifying = false;
+  var errorMsg = '';
+
+  final RxString idServerMsg = ''.obs;
+  final RxString relayServerMsg = ''.obs;
+  final RxString apiServerMsg = ''.obs;
+  final errMsgs = [idServerMsg, relayServerMsg, apiServerMsg];
+
+  dialogManager.show((setState, close, context) {
+    Future<void> fetchConfig() async {
+      final code = codeCtrl.text.trim();
+      
+      if (code.isEmpty) {
+        setState(() {
+          errorMsg = translate('Please enter config code');
+        });
+        return;
+      }
+
+      setState(() {
+        isVerifying = true;
+        errorMsg = '';
+      });
+
+      try {
+        // Decode the config code
+        final config = ServerConfig.decode(code);
+        
+        if (isWeb || isIOS) {
+          config.relayServer = '';
+        }
+
+        // Apply the configuration
+        bool success = await setServerConfig(null, errMsgs, config);
+        
+        setState(() {
+          isVerifying = false;
+        });
+
+        if (success) {
+          close();
+          // Show success dialog
+          showConfigSuccessDialog(dialogManager, config);
+        } else {
+          setState(() {
+            errorMsg = translate('Failed to apply configuration');
+          });
+        }
+      } catch (e) {
+        setState(() {
+          isVerifying = false;
+          errorMsg = translate('Invalid config code');
+        });
+        debugPrint('Config code decode error: $e');
+      }
+    }
+
+    return CustomAlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.vpn_key, color: MyTheme.accent),
+          SizedBox(width: 10),
+          Expanded(child: Text(translate('Get Server Config'))),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              translate('Config Code'),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+            ),
+            SizedBox(height: 8),
+            TextFormField(
+              controller: codeCtrl,
+              decoration: InputDecoration(
+                hintText: 'KUST-1001-20250926-...',
+                helperText: translate('Enter the config code provided by admin'),
+                errorText: errorMsg.isEmpty ? null : errorMsg,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              autofocus: true,
+            ).workaroundFreezeLinuxMint(),
+            if (isVerifying) ...[
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    translate('Verifying config code...'),
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 20, color: Colors.blue[700]),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      translate('Config code example: KUST-XXXX-YYYYMMDD-...'),
+                      style: TextStyle(fontSize: 12, color: Colors.blue[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        dialogButton(
+          'Cancel',
+          icon: Icon(Icons.close_rounded),
+          onPressed: close,
+          isOutline: true,
+        ),
+        dialogButton(
+          'Get Config',
+          icon: Icon(Icons.cloud_download_rounded),
+          onPressed: isVerifying ? null : fetchConfig,
+        ),
+      ],
+    );
+  });
+}
+
+/// Show configuration success dialog with server details
+void showConfigSuccessDialog(
+    OverlayDialogManager dialogManager, ServerConfig config) async {
+  dialogManager.show((setState, close, context) {
+    // Save config timestamp
+    final configTime = DateTime.now().toString().substring(0, 19);
+    bind.mainSetOption(key: 'config_timestamp', value: configTime);
+    bind.mainSetOption(key: 'config_name', value: config.idServer);
+
+    return CustomAlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green, size: 28),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              translate('Configuration Successful'),
+              style: TextStyle(color: Colors.green[700]),
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Success message
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.celebration, size: 48, color: Colors.green[400]),
+                  SizedBox(height: 12),
+                  Text(
+                    translate('Configuration Complete!'),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    translate('Successfully connected to server'),
+                    style: TextStyle(color: Colors.green[600]),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 20),
+            
+            // Server information
+            Text(
+              translate('Server Information'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 12),
+            _buildInfoRow(Icons.dns, 'ID Server', config.idServer),
+            if (config.relayServer.isNotEmpty)
+              _buildInfoRow(Icons.router, 'Relay Server', config.relayServer),
+            if (config.apiServer.isNotEmpty)
+              _buildInfoRow(Icons.cloud, 'API Server', config.apiServer),
+            _buildInfoRow(Icons.access_time, 'Config Time', configTime),
+            SizedBox(height: 16),
+            
+            // Status indicators
+            _buildStatusRow(Icons.check_circle, 'ID Server', true),
+            if (config.relayServer.isNotEmpty)
+              _buildStatusRow(Icons.check_circle, 'Relay Server', true),
+            if (config.apiServer.isNotEmpty)
+              _buildStatusRow(Icons.check_circle, 'API Server', true),
+            SizedBox(height: 16),
+            
+            // Tip
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lightbulb_outline, size: 20, color: Colors.blue[700]),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      translate('Tip: Configuration saved. You can now login and start using.'),
+                      style: TextStyle(fontSize: 13, color: Colors.blue[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        dialogButton(
+          'Continue',
+          icon: Icon(Icons.arrow_forward_rounded),
+          onPressed: close,
+        ),
+      ],
+    );
+  });
+}
+
+Widget _buildInfoRow(IconData icon, String label, String value) {
+  return Padding(
+    padding: EdgeInsets.only(bottom: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey[600]),
+        SizedBox(width: 8),
+        SizedBox(
+          width: 100,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildStatusRow(IconData icon, String label, bool isSuccess) {
+  return Padding(
+    padding: EdgeInsets.only(bottom: 6),
+    child: Row(
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: isSuccess ? Colors.green : Colors.grey,
+        ),
+        SizedBox(width: 8),
+        Text(
+          '$label ${isSuccess ? translate("Connected") : translate("Disconnected")}',
+          style: TextStyle(
+            color: isSuccess ? Colors.green[700] : Colors.grey,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Show welcome dialog on first launch
+/// Guide users to configure server with config code
+void showWelcomeConfigDialog(OverlayDialogManager dialogManager) async {
+  dialogManager.show((setState, close, context) {
+    return CustomAlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.celebration, color: MyTheme.accent, size: 28),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              translate('Welcome to RustDesk'),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 500, maxWidth: 600),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome banner
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    MyTheme.accent.withOpacity(0.1),
+                    MyTheme.accent.withOpacity(0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: MyTheme.accent.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.rocket_launch, size: 56, color: MyTheme.accent),
+                  SizedBox(height: 12),
+                  Text(
+                    translate('Start Configuring Your Remote Connection'),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: MyTheme.accent,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    translate('Quick and easy setup in just a few steps'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 24),
+            
+            // Configuration options
+            Text(
+              translate('Choose Setup Method'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 16),
+            
+            // Option 1: Config code (recommended)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.vpn_key, color: Colors.blue[700], size: 24),
+                ),
+                title: Row(
+                  children: [
+                    Text(
+                      translate('Use Config Code'),
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    SizedBox(width: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        translate('Recommended'),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: Text(
+                  translate('Enter the config code provided by your admin'),
+                  style: TextStyle(fontSize: 13),
+                ),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  close();
+                  // Small delay to allow welcome dialog to close first
+                  Future.delayed(Duration(milliseconds: 300), () {
+                    showConfigCodeDialog(dialogManager);
+                  });
+                },
+              ),
+            ),
+            SizedBox(height: 12),
+            
+            // Option 2: Manual configuration
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.settings, color: Colors.grey[700], size: 24),
+                ),
+                title: Text(
+                  translate('Manual Configuration'),
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  translate('For advanced users'),
+                  style: TextStyle(fontSize: 13),
+                ),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  close();
+                  Future.delayed(Duration(milliseconds: 300), () {
+                    showServerSettings(dialogManager);
+                  });
+                },
+              ),
+            ),
+            SizedBox(height: 20),
+            
+            // Info tip
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber[200]!),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 20, color: Colors.amber[800]),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      translate('Tip: Contact your administrator to get a config code for quick setup'),
+                      style: TextStyle(fontSize: 12, color: Colors.amber[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        dialogButton(
+          'Skip for Now',
+          icon: Icon(Icons.skip_next),
+          onPressed: close,
+          isOutline: true,
+        ),
+        dialogButton(
+          'Get Config Code',
+          icon: Icon(Icons.vpn_key),
+          onPressed: () {
+            close();
+            Future.delayed(Duration(milliseconds: 300), () {
+              showConfigCodeDialog(dialogManager);
+            });
+          },
+        ),
+      ],
+    );
+  });
+}

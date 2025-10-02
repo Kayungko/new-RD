@@ -661,6 +661,9 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               ),
             ],
           ),
+        // Server Configuration Section with config code support
+        if (!disabledSettings && !_hideNetwork && !_hideServer)
+          _buildServerConfigSection(),
         SettingsSection(title: Text(translate("Settings")), tiles: [
           if (!disabledSettings && !_hideNetwork && !_hideServer)
             SettingsTile(
@@ -1236,4 +1239,119 @@ SettingsTile _getPopupDialogRadioEntry({
       child: Obx(() => Text(translate(valueText.value))),
     ),
   );
+}
+
+// Extension to _SettingsState for server config management
+extension _ServerConfigManagement on _SettingsState {
+  // Get current server configuration status
+  String _getConfigStatus() {
+    final configTime = bind.mainGetOption(key: 'config_timestamp');
+    final configName = bind.mainGetOption(key: 'config_name');
+    
+    if (configTime.isNotEmpty && configName.isNotEmpty) {
+      return '$configName';
+    }
+    return '';
+  }
+
+  String _getConfigTime() {
+    final configTime = bind.mainGetOption(key: 'config_timestamp');
+    if (configTime.isNotEmpty) {
+      try {
+        return configTime.substring(0, 16); // Show only date and hour:minute
+      } catch (e) {
+        return configTime;
+      }
+    }
+    return '';
+  }
+
+  bool _hasServerConfig() {
+    return _getConfigStatus().isNotEmpty;
+  }
+
+  void _clearServerConfig() {
+    bind.mainSetOption(key: 'config_timestamp', value: '');
+    bind.mainSetOption(key: 'config_name', value: '');
+  }
+
+  // Build server configuration section with config code support
+  Widget _buildServerConfigSection() {
+    return SettingsSection(
+      title: Text(translate('Server Configuration')),
+      tiles: [
+        // Config status card
+        if (_hasServerConfig())
+          SettingsTile(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      translate('Current Configuration'),
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 6),
+                Text(
+                  _getConfigStatus(),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                ),
+                if (_getConfigTime().isNotEmpty)
+                  Text(
+                    '${translate("Time")}: ${_getConfigTime()}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+              ],
+            ),
+            trailing: IconButton(
+              icon: Icon(Icons.clear, color: Colors.red[400]),
+              onPressed: () {
+                CommonConfirmDialog(
+                  gFFI.dialogManager,
+                  translate('Clear server configuration?'),
+                  () {
+                    _clearServerConfig();
+                    setState(() {});
+                    showToast(translate('Configuration cleared'));
+                  },
+                );
+              },
+            ),
+          ),
+        
+        // Get config code button
+        SettingsTile(
+          title: Row(
+            children: [
+              Icon(Icons.vpn_key, color: MyTheme.accent, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  translate('Get Server Config'),
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          leading: Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: MyTheme.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.cloud_download, color: MyTheme.accent),
+          ),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16),
+          onPressed: (context) {
+            showConfigCodeDialog(gFFI.dialogManager);
+          },
+        ),
+      ],
+    );
+  }
 }

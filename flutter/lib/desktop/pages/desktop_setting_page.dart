@@ -1511,6 +1511,7 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
       preventMouseKeyBuilder(
         block: locked,
         child: Column(children: [
+          _buildServerConfigCard(context),
           network(context),
         ]),
       ),
@@ -1624,6 +1625,151 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
                           },
                   ),
                 ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Server configuration card with config code support
+  Widget _buildServerConfigCard(BuildContext context) {
+    final hideServer =
+        bind.mainGetBuildinOption(key: kOptionHideServerSetting) == 'Y';
+    
+    if (hideServer) {
+      return Offstage();
+    }
+
+    final configTime = bind.mainGetOption(key: 'config_timestamp');
+    final configName = bind.mainGetOption(key: 'config_name');
+    final hasConfig = configTime.isNotEmpty && configName.isNotEmpty;
+
+    String getConfigTimeDisplay() {
+      if (configTime.isNotEmpty) {
+        try {
+          return configTime.substring(0, 16);
+        } catch (e) {
+          return configTime;
+        }
+      }
+      return '';
+    }
+
+    return _Card(
+      title: 'Server Configuration',
+      children: [
+        Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Config status display
+              if (hasConfig)
+                Container(
+                  padding: EdgeInsets.all(12),
+                  margin: EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 20),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              translate('Current Configuration'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              configName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            if (getConfigTimeDisplay().isNotEmpty)
+                              Text(
+                                '${translate("Time")}: ${getConfigTimeDisplay()}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.clear, color: Colors.red[400]),
+                        tooltip: translate('Clear'),
+                        onPressed: locked
+                            ? null
+                            : () {
+                                msgBox(
+                                  '',
+                                  'Clear server configuration?',
+                                  translate('Clear server configuration?'),
+                                  '',
+                                  false,
+                                  type: 'warning',
+                                ).then((result) {
+                                  if (result == 'OK') {
+                                    bind.mainSetOption(
+                                        key: 'config_timestamp', value: '');
+                                    bind.mainSetOption(
+                                        key: 'config_name', value: '');
+                                    setState(() {});
+                                    showToast(
+                                        translate('Configuration cleared'));
+                                  }
+                                });
+                              },
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Get config code button
+              ListTile(
+                leading: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _accentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.vpn_key, color: _accentColor, size: 20),
+                ),
+                title: Row(
+                  children: [
+                    Icon(Icons.cloud_download, color: _accentColor, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      translate('Get Server Config'),
+                      style: TextStyle(
+                        fontSize: _kContentFontSize,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                enabled: !locked,
+                onTap: () => showConfigCodeDialog(gFFI.dialogManager),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                minLeadingWidth: 0,
+                horizontalTitleGap: 10,
+              ),
             ],
           ),
         ),
